@@ -1005,6 +1005,30 @@ img { max-width: 100%; }
   .sched-label { width: auto; }
 }
 
+@media (max-width: 640px) {
+  .tb-nav a {
+    padding: 10px 2px;
+    font-size: 13.5px;
+    letter-spacing: 0.4px;
+    text-align: center;
+  }
+
+  /* Catalog editor: stack option controls instead of squeezing one row. */
+  .cat-qhead { flex-wrap: wrap; }
+  .cat-qhead .field-code { width: 100%; }
+  .cat-qlabel { flex: 1 1 55%; max-width: none; }
+
+  .cat-option { flex-wrap: wrap; }
+  .cat-option > .field-input:first-of-type { flex: 1 1 45%; max-width: none; }
+  .cat-option .cat-swatch-input { flex: 1 1 100%; max-width: none; order: 10; }
+
+  .cat-add { flex-direction: column; }
+
+  .sheet-actions { flex-direction: column; align-items: stretch; }
+  .sheet-buttons { flex-wrap: wrap; }
+  .sheet-buttons .btn { flex: 1 1 auto; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
