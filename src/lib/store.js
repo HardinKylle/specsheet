@@ -1,4 +1,5 @@
 import { DEFAULT_CATALOG } from "../data/defaultCatalog.js";
+import { makeSampleProject } from "../data/sampleProject.js";
 
 // Bump when the stored data shape changes incompatibly: mismatched stores are
 // cleared on load so stale data can never wedge the UI.
@@ -10,6 +11,17 @@ const PROJECTS_KEY = "specsheet.projects";
 const ACTIVE_KEY = "specsheet.activeProject";
 const SETTINGS_KEY = "specsheet.settings";
 const LEGACY_PROJECT_KEY = "specsheet.project";
+const SEEDED_KEY = "specsheet.seeded";
+const WELCOME_KEY = "specsheet.welcomeDismissed";
+
+export function isWelcomeDismissed() {
+  return localStorage.getItem(WELCOME_KEY) === "1";
+}
+
+export function setWelcomeDismissed(dismissed) {
+  if (dismissed) localStorage.setItem(WELCOME_KEY, "1");
+  else localStorage.removeItem(WELCOME_KEY);
+}
 
 function read(key, fallback) {
   try {
@@ -70,6 +82,16 @@ export function loadProjects() {
     const map = { [migrated.id]: migrated };
     saveProjects(map);
     setActiveProjectId(migrated.id);
+    return map;
+  }
+
+  // First visit: seed a sample project (once — deleting it doesn't respawn it).
+  if (!localStorage.getItem(SEEDED_KEY)) {
+    localStorage.setItem(SEEDED_KEY, "1");
+    const sample = makeSampleProject();
+    const map = { [sample.id]: sample };
+    saveProjects(map);
+    setActiveProjectId(sample.id);
     return map;
   }
   return {};
