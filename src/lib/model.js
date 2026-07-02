@@ -9,15 +9,18 @@ export function getRoomCount(catalog, project, section) {
   if (!section.repeatable) return 1;
   const source = findCountSource(catalog, section);
   if (!source) return 1;
-  const value = Number(project.answers[source.sectionId]?.[source.questionId]);
-  return Number.isFinite(value) ? Math.max(0, Math.min(value, 12)) : 0;
+  const value = Number(project.answers[source.sectionId]?.[source.question.id]);
+  if (!Number.isFinite(value)) return 0;
+  const min = Math.max(0, Number.isFinite(source.question.min) ? source.question.min : 0);
+  const max = Number.isFinite(source.question.max) ? source.question.max : 12;
+  return Math.min(Math.max(Math.floor(value), min), max);
 }
 
 function findCountSource(catalog, section) {
   for (const s of catalog.sections) {
     if (s.repeatable) continue;
     const q = s.questions.find((q) => q.id === section.countFrom);
-    if (q) return { sectionId: s.id, questionId: q.id };
+    if (q) return { sectionId: s.id, question: q };
   }
   return null;
 }
@@ -63,12 +66,21 @@ export function pickKey(sectionId, roomIndex, questionId) {
   return `${sectionId}.${roomIndex}.${questionId}`;
 }
 
+// Choice values must point at an option that still exists — catalog edits can
+// orphan stored ids, and those must read as open, not as resolved.
+function isValidValue(question, value) {
+  if (question.type !== "choice") return true;
+  return Boolean(question.options?.some((o) => o.id === value));
+}
+
 // An item is resolved by the contractor's answer first, then a client pick.
 export function resolveAnswer(project, section, roomIndex, question) {
   const own = getAnswer(project, section, roomIndex, question.id);
-  if (own !== undefined && own !== "") return { value: own, by: "contractor" };
+  if (own !== undefined && own !== "" && isValidValue(question, own)) {
+    return { value: own, by: "contractor" };
+  }
   const pick = project.clientPicks?.[pickKey(section.id, roomIndex, question.id)];
-  if (pick) return { value: pick, by: "client" };
+  if (pick && isValidValue(question, pick)) return { value: pick, by: "client" };
   return { value: undefined, by: null };
 }
 
