@@ -971,6 +971,33 @@ img { max-width: 100%; }
 
 .cat-photo-btn input { display: none; }
 
+/* ---------- device sync ---------- */
+.sync-panel { max-width: 560px; }
+
+.sync-code-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.sync-code {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  background: var(--white);
+  border: 1px solid var(--line-strong);
+  padding: 8px 10px;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.sync-connect {
+  display: flex;
+  gap: 10px;
+}
+
+.sync-connect .field-input { flex: 1; }
+
 /* ---------- client return / apply ---------- */
 .client-return { display: flex; gap: 10px; flex-wrap: wrap; }
 
@@ -992,7 +1019,8 @@ img { max-width: 100%; }
     border-bottom: 1px solid var(--line);
   }
   .toc-title { display: none; }
-  .toc-item { width: auto; border-left: none; border-bottom: 3px solid transparent; padding: 8px 10px; }
+  .toc-item { width: auto; border-left: none; border-bottom: 3px solid transparent; padding: 8px 10px; gap: 6px; }
+  .toc-count { margin-left: 0; }
   .toc-item.active { border-bottom-color: var(--orange); }
   .toc-div { display: none; }
   .toc-actions { margin: 6px 0 0; padding: 10px 0 4px; width: 100%; border-top: 1px solid var(--line); }

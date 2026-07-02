@@ -23,12 +23,15 @@ async function rpc(fn, args) {
 }
 
 // Publish (or republish) a project. Returns { id, write_key }.
+// The stored snapshot is client-readable via get_project, so the share
+// credentials must never be part of it — the key travels only as an RPC arg.
 export function shareProject(catalog, project) {
+  const { share, ...publicProject } = project;
   return rpc("share_project", {
-    p_data: project,
+    p_data: publicProject,
     p_catalog: catalog,
-    p_id: project.share?.id ?? null,
-    p_key: project.share?.write_key ?? null,
+    p_id: share?.id ?? null,
+    p_key: share?.write_key ?? null,
   });
 }
 
@@ -45,4 +48,17 @@ export function submitSelections(id, picks, summary) {
 // Contractor-only: list submissions for a shared project.
 export function getSubmissions(share) {
   return rpc("get_submissions", { p_id: share.id, p_key: share.write_key });
+}
+
+// Workspace: cloud persistence for the contractor's projects/catalog/settings.
+export function createWorkspace() {
+  return rpc("create_workspace", {});
+}
+
+export function loadWorkspace(creds) {
+  return rpc("load_workspace", { p_id: creds.id, p_key: creds.key });
+}
+
+export function saveWorkspace(creds, state) {
+  return rpc("save_workspace", { p_id: creds.id, p_key: creds.key, p_state: state });
 }

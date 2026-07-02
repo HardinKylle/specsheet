@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Projects from "./views/Projects.jsx";
 import Intake from "./views/Intake.jsx";
 import Sheet from "./views/Sheet.jsx";
@@ -7,15 +7,21 @@ import Apply from "./views/Apply.jsx";
 import Catalog from "./views/Catalog.jsx";
 import {
   loadCatalog,
+  saveCatalog,
   loadProjects,
   saveProjects,
   newProject,
   getActiveProjectId,
   setActiveProjectId,
   loadSettings,
+  saveSettings,
+  getWorkspaceCreds,
+  setWorkspaceCreds,
+  codeToCreds,
 } from "./lib/store.js";
 import { projectMeta } from "./lib/model.js";
 import { decodeShare } from "./lib/link.js";
+import { cloudEnabled, createWorkspace, loadWorkspace, saveWorkspace } from "./lib/cloud.js";
 
 function parseHash() {
   const hash = location.hash.replace(/^#\/?/, "");
@@ -36,6 +42,10 @@ export default function App() {
   const [projects, setProjectsState] = useState(loadProjects);
   const [activeId, setActiveId] = useState(getActiveProjectId);
   const [settings, setSettings] = useState(loadSettings);
+  const [clientPayload, setClientPayload] = useState(null);
+  const [workspace, setWorkspace] = useState(getWorkspaceCreds);
+  const syncReady = useRef(false);
+  const saveTimer = useRef();
 
   useEffect(() => {
     const onHash = () => setRoute(parseHash());
@@ -43,9 +53,95 @@ export default function App() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
+  function hydrate(state) {
+    if (state.projects) {
+      setProjectsState(state.projects);
+      saveProjects(state.projects);
+      if (!state.projects[getActiveProjectId()]) {
+        const first = Object.keys(state.projects)[0] || null;
+        setActiveId(first);
+        setActiveProjectId(first);
+      }
+    }
+    if (state.catalog) {
+      setCatalog(state.catalog);
+      saveCatalog(state.catalog);
+    }
+    if (state.settings) {
+      setSettings(state.settings);
+      saveSettings(state.settings);
+    }
+  }
+
+  // Boot: the Supabase workspace is the source of truth for contractor data;
+  // localStorage acts as cache. First run creates a workspace and pushes the
+  // local (seeded) state up.
+  useEffect(() => {
+    if (!cloudEnabled || route.path === "client") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        let creds = workspace;
+        if (!creds) {
+          creds = await createWorkspace();
+          if (cancelled) return;
+          setWorkspaceCreds(creds);
+          setWorkspace(creds);
+          await saveWorkspace(creds, { projects, catalog, settings });
+        } else {
+          const state = await loadWorkspace(creds);
+          if (cancelled) return;
+          if (state && Object.keys(state.projects || {}).length) {
+            hydrate(state);
+          } else {
+            await saveWorkspace(creds, { projects, catalog, settings });
+          }
+        }
+        syncReady.current = true;
+      } catch {
+        // Offline — keep working from the local cache; autosave stays off.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Autosave the workspace after changes settle.
+  useEffect(() => {
+    if (!cloudEnabled || !syncReady.current || !workspace) return;
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveWorkspace(workspace, { projects, catalog, settings }).catch(() => {});
+    }, 800);
+    return () => clearTimeout(saveTimer.current);
+  }, [projects, catalog, settings, workspace]);
+
+  // Connect this device to an existing workspace via its sync code.
+  async function connectWorkspace(code) {
+    const creds = codeToCreds(code);
+    if (!creds) return "That code doesn't look right — it should be two UUIDs joined by a dot.";
+    try {
+      const state = await loadWorkspace(creds);
+      if (state === null) return "No workspace found for that code.";
+      setWorkspaceCreds(creds);
+      setWorkspace(creds);
+      hydrate(state || {});
+      syncReady.current = true;
+      return null;
+    } catch {
+      return "Couldn't reach the server — try again.";
+    }
+  }
+
+  // Accepts a map or an updater function — async callers (dashboard sync) must
+  // merge against the latest state, not a snapshot from before their await.
   function setProjects(next) {
-    setProjectsState(next);
-    saveProjects(next);
+    setProjectsState((prev) => {
+      const value = typeof next === "function" ? next(prev) : next;
+      saveProjects(value);
+      return value;
+    });
   }
 
   function activate(id) {
@@ -81,11 +177,16 @@ export default function App() {
 
   const isClient = route.path === "client";
   // The client opens their link on their own device — header meta must come
-  // from the shared payload there, never from this browser's stored projects.
-  const shared = isClient ? decodeShare(route.params.get("d") || "") : null;
-  const metaSource = shared?.project || project;
+  // from the shared payload (decoded ?d= or the fetched cloud project reported
+  // back by the Client view), never from this browser's stored projects.
+  const shared = isClient
+    ? route.params.get("d")
+      ? decodeShare(route.params.get("d"))
+      : clientPayload
+    : null;
+  const metaSource = isClient ? shared?.project : project;
   const meta = metaSource
-    ? projectMeta(catalog, metaSource)
+    ? projectMeta(shared?.catalog || catalog, metaSource)
     : { projectName: "—", clientName: "—" };
   const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 
@@ -136,12 +237,19 @@ export default function App() {
         <Sheet catalog={catalog} project={ensureProject()} setProject={setProject} settings={settings} />
       )}
       {route.path === "catalog" && (
-        <Catalog catalog={catalog} setCatalog={setCatalog} settings={settings} setSettings={setSettings} />
+        <Catalog
+          catalog={catalog}
+          setCatalog={setCatalog}
+          settings={settings}
+          setSettings={setSettings}
+          workspace={workspace}
+          connectWorkspace={connectWorkspace}
+        />
       )}
       {route.path === "apply" && (
         <Apply params={route.params} projects={projects} applyClientPicks={applyClientPicks} />
       )}
-      {isClient && <Client params={route.params} />}
+      {isClient && <Client params={route.params} onLoaded={setClientPayload} />}
     </div>
   );
 }

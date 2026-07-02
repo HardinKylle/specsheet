@@ -88,6 +88,51 @@ language sql security definer stable set search_path = public as $$
   where p.id = p_id and p.write_key = p_key;
 $$;
 
+-- Contractor workspace: the source of truth for projects/catalog/settings.
+-- One row per contractor "device group"; the (id, key) pair acts as the sync
+-- code until real auth lands.
+create table public.workspaces (
+  id uuid primary key default gen_random_uuid(),
+  key uuid not null default gen_random_uuid(),
+  state jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.workspaces enable row level security;
+revoke all on public.workspaces from anon, authenticated;
+
+create or replace function public.create_workspace()
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  v_id uuid;
+  v_key uuid;
+begin
+  insert into workspaces default values returning id, key into v_id, v_key;
+  return jsonb_build_object('id', v_id, 'key', v_key);
+end $$;
+
+create or replace function public.load_workspace(p_id uuid, p_key uuid)
+returns jsonb
+language sql security definer stable set search_path = public as $$
+  select state from workspaces where id = p_id and key = p_key;
+$$;
+
+create or replace function public.save_workspace(p_id uuid, p_key uuid, p_state jsonb)
+returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  update workspaces set state = p_state, updated_at = now()
+    where id = p_id and key = p_key;
+  if not found then
+    raise exception 'workspace not found or wrong key';
+  end if;
+end $$;
+
+grant execute on function public.create_workspace() to anon;
+grant execute on function public.load_workspace(uuid, uuid) to anon;
+grant execute on function public.save_workspace(uuid, uuid, jsonb) to anon;
+
 grant execute on function public.share_project(jsonb, jsonb, uuid, uuid) to anon;
 grant execute on function public.get_project(uuid) to anon;
 grant execute on function public.submit_selections(uuid, jsonb, jsonb) to anon;

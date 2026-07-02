@@ -110,6 +110,27 @@ export function setActiveProjectId(id) {
   else localStorage.removeItem(ACTIVE_KEY);
 }
 
+const WORKSPACE_KEY = "specsheet.workspace";
+
+export function getWorkspaceCreds() {
+  return read(WORKSPACE_KEY, null);
+}
+
+export function setWorkspaceCreds(creds) {
+  localStorage.setItem(WORKSPACE_KEY, JSON.stringify(creds));
+}
+
+// Human-shareable sync code <-> credentials.
+export function credsToCode(creds) {
+  return `${creds.id}.${creds.key}`;
+}
+
+export function codeToCreds(code) {
+  const [id, key] = (code || "").trim().split(".");
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuid.test(id || "") && uuid.test(key || "") ? { id, key } : null;
+}
+
 export function loadSettings() {
   return read(SETTINGS_KEY, { companyName: "", contactLine: "", logo: undefined });
 }

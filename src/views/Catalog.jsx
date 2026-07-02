@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Swatch } from "../components/inputs.jsx";
-import { saveCatalog, resetCatalog, saveSettings } from "../lib/store.js";
+import { saveCatalog, resetCatalog, saveSettings, credsToCode } from "../lib/store.js";
 import { compressImage } from "../lib/images.js";
 
 let uid = 0;
 const newId = (prefix) => `${prefix}_${Date.now().toString(36)}_${uid++}`;
 
-export default function Catalog({ catalog, setCatalog, settings, setSettings }) {
+export default function Catalog({ catalog, setCatalog, settings, setSettings, workspace, connectWorkspace }) {
   const [activeId, setActiveId] = useState(catalog.sections[0].id);
   const isBusiness = activeId === "business";
   const active = catalog.sections.find((s) => s.id === activeId) || catalog.sections[0];
@@ -65,7 +65,12 @@ export default function Catalog({ catalog, setCatalog, settings, setSettings }) 
 
       <main className="pane">
         {isBusiness ? (
-          <BusinessPanel settings={settings} updateSettings={updateSettings} />
+          <BusinessPanel
+            settings={settings}
+            updateSettings={updateSettings}
+            workspace={workspace}
+            connectWorkspace={connectWorkspace}
+          />
         ) : (
           <SectionEditor active={active} updateSection={updateSection} />
         )}
@@ -74,7 +79,17 @@ export default function Catalog({ catalog, setCatalog, settings, setSettings }) 
   );
 }
 
-function BusinessPanel({ settings, updateSettings }) {
+function BusinessPanel({ settings, updateSettings, workspace, connectWorkspace }) {
+  const [codeInput, setCodeInput] = useState("");
+  const [syncMsg, setSyncMsg] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  async function handleConnect() {
+    const error = await connectWorkspace(codeInput);
+    setSyncMsg(error || "Connected — your projects are loaded on this device.");
+    if (!error) setCodeInput("");
+  }
+
   async function handleLogo(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -127,6 +142,44 @@ function BusinessPanel({ settings, updateSettings }) {
             <small>Square or wide marks both work — it's scaled to fit.</small>
           </label>
         )}
+      </div>
+
+      <div className="field sync-panel">
+        <label className="field-label">Device sync</label>
+        <p className="pane-hint">
+          Your projects are saved to the cloud under this sync code. Keep a copy
+          somewhere safe — enter it on another device (or after clearing this
+          browser) to load the same projects.
+        </p>
+        {workspace ? (
+          <div className="sync-code-row">
+            <code className="sync-code">{credsToCode(workspace)}</code>
+            <button
+              className="btn btn-ghost btn-small"
+              onClick={async () => {
+                await navigator.clipboard.writeText(credsToCode(workspace));
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2500);
+              }}
+            >
+              {copied ? "Copied ✓" : "Copy"}
+            </button>
+          </div>
+        ) : (
+          <p className="pane-hint">Connecting to the cloud…</p>
+        )}
+        <div className="sync-connect">
+          <input
+            className="field-input"
+            placeholder="Paste a sync code from another device"
+            value={codeInput}
+            onChange={(e) => setCodeInput(e.target.value)}
+          />
+          <button className="btn btn-ghost" onClick={handleConnect} disabled={!codeInput.trim()}>
+            Connect
+          </button>
+        </div>
+        {syncMsg ? <p className="pane-hint"><b>{syncMsg}</b></p> : null}
       </div>
     </>
   );
