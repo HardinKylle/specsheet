@@ -1,16 +1,11 @@
 import { useState } from "react";
 import { QuestionField } from "../components/inputs.jsx";
 import { getAnswer, setAnswer, getRoomCount, isVisible, openSelections } from "../lib/model.js";
-import { clearProject } from "../lib/store.js";
 
 export default function Intake({ catalog, project, setProject }) {
   const [activeId, setActiveId] = useState(catalog.sections[0].id);
   const active = catalog.sections.find((s) => s.id === activeId) || catalog.sections[0];
   const open = openSelections(catalog, project).length;
-
-  function startOver() {
-    if (confirm("Clear all answers and start a new project?")) setProject(clearProject());
-  }
 
   return (
     <div className="layout">
@@ -37,7 +32,7 @@ export default function Intake({ catalog, project, setProject }) {
               ? "All selections specified."
               : `${open} selection${open === 1 ? "" : "s"} left open for the client.`}
           </p>
-          <button className="btn btn-ghost" onClick={startOver}>New project</button>
+          <a className="btn btn-ghost" href="#/projects">All projects</a>
         </div>
       </aside>
 
