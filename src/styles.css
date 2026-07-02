@@ -825,6 +825,78 @@ img { max-width: 100%; }
 
 .project-actions { display: flex; gap: 8px; margin-top: 6px; }
 
+/* ---------- general-notes welcome panel ---------- */
+.notes {
+  border: 1.5px solid var(--ink);
+  background: var(--white);
+  padding: 18px 22px 16px;
+  margin-bottom: 24px;
+  max-width: 760px;
+}
+
+.notes-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+.notes-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.notes-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: note;
+  display: grid;
+  gap: 8px;
+}
+
+.notes-list li {
+  counter-increment: note;
+  font-size: 13.5px;
+  padding-left: 30px;
+  position: relative;
+}
+
+.notes-list li::before {
+  content: counter(note, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 2px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--blueprint);
+}
+
+.notes-foot {
+  margin: 12px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--blueprint);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
+}
+
 /* ---------- branding ---------- */
 .tb-logo {
   max-height: 40px;

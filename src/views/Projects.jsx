@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
-import { newProject } from "../lib/store.js";
+import { newProject, isWelcomeDismissed, setWelcomeDismissed } from "../lib/store.js";
 import { projectMeta, progress } from "../lib/model.js";
 import { cloudEnabled, getSubmissions } from "../lib/cloud.js";
 
 export default function Projects({ catalog, projects, setProjects, activeId, activate }) {
   const list = Object.values(projects).sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
   const [syncNote, setSyncNote] = useState(null);
+  const [showWelcome, setShowWelcome] = useState(() => !isWelcomeDismissed());
+
+  function toggleWelcome(show) {
+    setShowWelcome(show);
+    setWelcomeDismissed(!show);
+  }
 
   // Pull in any selections clients made online since the last visit.
   useEffect(() => {
@@ -78,8 +84,50 @@ export default function Projects({ catalog, projects, setProjects, activeId, act
           Every job in one place. Duplicate a finished project to reuse it as a
           template for the next one.
           {syncNote ? <b> {syncNote}</b> : null}
+          {!showWelcome && (
+            <>
+              {" "}
+              <button className="link-btn" onClick={() => toggleWelcome(true)}>
+                How it works
+              </button>
+            </>
+          )}
         </p>
       </div>
+
+      {showWelcome && (
+        <aside className="notes">
+          <div className="notes-head">
+            <h2>General Notes — How This Works</h2>
+            <button className="btn btn-ghost btn-small" onClick={() => toggleWelcome(false)}>
+              Got it
+            </button>
+          </div>
+          <ol className="notes-list">
+            <li>
+              <b>Fill out the intake.</b> Answer what's already decided for the job —
+              anything you leave blank becomes a choice for your client.
+            </li>
+            <li>
+              <b>Generate the selection sheet.</b> A print-ready schedule: your picks
+              marked ●, open items listed with ○ checkboxes. Print it or save as PDF.
+            </li>
+            <li>
+              <b>Send the client link.</b> One click publishes the project and copies a
+              link — your client makes their selections on any device.
+            </li>
+            <li>
+              <b>Selections come back on their own.</b> This page syncs them
+              automatically and marks them ◆ on the sheet.
+            </li>
+          </ol>
+          <p className="notes-foot">
+            The <b>Sample — Alder St Residence</b> project below is safe to explore or
+            delete. Update materials and questions anytime under <b>Catalog</b> — no
+            developer needed.
+          </p>
+        </aside>
+      )}
 
       <div className="project-grid">
         <button className="project-card project-new" onClick={create}>
