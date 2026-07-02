@@ -59,7 +59,20 @@ export function projectMeta(catalog, project) {
   };
 }
 
-// Questions the client still needs to decide: visible choice questions with no answer.
+export function pickKey(sectionId, roomIndex, questionId) {
+  return `${sectionId}.${roomIndex}.${questionId}`;
+}
+
+// An item is resolved by the contractor's answer first, then a client pick.
+export function resolveAnswer(project, section, roomIndex, question) {
+  const own = getAnswer(project, section, roomIndex, question.id);
+  if (own !== undefined && own !== "") return { value: own, by: "contractor" };
+  const pick = project.clientPicks?.[pickKey(section.id, roomIndex, question.id)];
+  if (pick) return { value: pick, by: "client" };
+  return { value: undefined, by: null };
+}
+
+// Questions the client still needs to decide: visible, unresolved choice questions.
 export function openSelections(catalog, project) {
   const open = [];
   for (const section of catalog.sections) {
@@ -69,9 +82,30 @@ export function openSelections(catalog, project) {
       for (const q of section.questions) {
         if (q.type !== "choice") continue;
         if (!isVisible(q, project, section, i)) continue;
-        if (!getAnswer(project, section, i, q.id)) open.push({ section, roomIndex: i, question: q });
+        if (!resolveAnswer(project, section, i, q).value) open.push({ section, roomIndex: i, question: q });
       }
     }
   }
   return open;
+}
+
+// Selection progress across all visible choice questions.
+export function progress(catalog, project) {
+  const tally = { total: 0, contractor: 0, client: 0, open: 0 };
+  for (const section of catalog.sections) {
+    if (section.id === "project") continue;
+    const count = getRoomCount(catalog, project, section);
+    for (let i = 0; i < count; i++) {
+      for (const q of section.questions) {
+        if (q.type !== "choice") continue;
+        if (!isVisible(q, project, section, i)) continue;
+        tally.total++;
+        const { by } = resolveAnswer(project, section, i, q);
+        if (by === "contractor") tally.contractor++;
+        else if (by === "client") tally.client++;
+        else tally.open++;
+      }
+    }
+  }
+  return tally;
 }

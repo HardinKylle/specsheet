@@ -1,16 +1,40 @@
 import { DEFAULT_CATALOG } from "../data/defaultCatalog.js";
 
+// Bump when the stored data shape changes incompatibly: mismatched stores are
+// cleared on load so stale data can never wedge the UI.
+const SCHEMA_VERSION = "2";
+const VERSION_KEY = "specsheet.version";
+
 const CATALOG_KEY = "specsheet.catalog";
-const PROJECT_KEY = "specsheet.project";
+const PROJECTS_KEY = "specsheet.projects";
+const ACTIVE_KEY = "specsheet.activeProject";
+const SETTINGS_KEY = "specsheet.settings";
+const LEGACY_PROJECT_KEY = "specsheet.project";
 
 function read(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : fallback;
   } catch {
+    localStorage.removeItem(key);
     return fallback;
   }
 }
+
+export function clearAllData() {
+  for (const key of Object.keys(localStorage)) {
+    if (key.startsWith("specsheet.")) localStorage.removeItem(key);
+  }
+}
+
+(function migrateSchema() {
+  if (localStorage.getItem(VERSION_KEY) !== SCHEMA_VERSION) {
+    // v1 -> v2 keeps the catalog and the legacy single project (loadProjects
+    // migrates it); anything else incompatible is dropped.
+    localStorage.removeItem(PROJECTS_KEY);
+    localStorage.setItem(VERSION_KEY, SCHEMA_VERSION);
+  }
+})();
 
 export function loadCatalog() {
   return read(CATALOG_KEY, DEFAULT_CATALOG);
@@ -25,19 +49,49 @@ export function resetCatalog() {
   return DEFAULT_CATALOG;
 }
 
-export function emptyProject() {
-  return { answers: {}, createdAt: new Date().toISOString() };
+export function newProject() {
+  return {
+    id: `p_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`,
+    createdAt: new Date().toISOString(),
+    answers: {},
+    clientPicks: {},
+  };
 }
 
-export function loadProject() {
-  return read(PROJECT_KEY, emptyProject());
+export function loadProjects() {
+  const projects = read(PROJECTS_KEY, null);
+  if (projects) return projects;
+
+  // Migrate the original single-project storage into the project map.
+  const legacy = read(LEGACY_PROJECT_KEY, null);
+  if (legacy) {
+    const migrated = { ...newProject(), ...legacy };
+    localStorage.removeItem(LEGACY_PROJECT_KEY);
+    const map = { [migrated.id]: migrated };
+    saveProjects(map);
+    setActiveProjectId(migrated.id);
+    return map;
+  }
+  return {};
 }
 
-export function saveProject(project) {
-  localStorage.setItem(PROJECT_KEY, JSON.stringify(project));
+export function saveProjects(projects) {
+  localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
 }
 
-export function clearProject() {
-  localStorage.removeItem(PROJECT_KEY);
-  return emptyProject();
+export function getActiveProjectId() {
+  return localStorage.getItem(ACTIVE_KEY) || null;
+}
+
+export function setActiveProjectId(id) {
+  if (id) localStorage.setItem(ACTIVE_KEY, id);
+  else localStorage.removeItem(ACTIVE_KEY);
+}
+
+export function loadSettings() {
+  return read(SETTINGS_KEY, { companyName: "", contactLine: "", logo: undefined });
+}
+
+export function saveSettings(settings) {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
