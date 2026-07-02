@@ -826,12 +826,21 @@ img { max-width: 100%; }
 .project-actions { display: flex; gap: 8px; margin-top: 6px; }
 
 /* ---------- general-notes welcome panel ---------- */
+.projects-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
+  align-items: start;
+}
+
+.projects-layout > .project-grid { min-width: 0; }
+
 .notes {
   border: 1.5px solid var(--ink);
   background: var(--white);
   padding: 18px 22px 16px;
-  margin-bottom: 24px;
-  max-width: 760px;
+  position: sticky;
+  top: 20px;
 }
 
 .notes-head {
@@ -843,6 +852,8 @@ img { max-width: 100%; }
   padding-bottom: 8px;
   margin-bottom: 10px;
 }
+
+.notes-head .btn { white-space: nowrap; }
 
 .notes-head h2 {
   margin: 0;
@@ -986,6 +997,8 @@ img { max-width: 100%; }
 
   .pane { padding: 24px 18px 60px; }
   .projects-wrap { padding: 24px 18px 60px; }
+  .projects-layout { grid-template-columns: 1fr; }
+  .notes { position: static; order: -1; }
   .sheet-wrap { padding: 18px 10px 60px; }
   .sheet { padding: 24px 18px; }
   .sheet-head { flex-direction: column; gap: 14px; }
