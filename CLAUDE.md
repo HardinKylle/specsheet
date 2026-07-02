@@ -10,11 +10,13 @@ This is the single source of truth for working in this repo. `AGENTS.md` points 
 npm run dev      # Vite dev server (restart after changing .env.local — env is read at boot)
 npm run build    # Production bundle -> dist/
 npm run preview  # Serve the built bundle
+npm test         # Node test runner (passing tests plus executable TODO regressions)
 ```
 
-There is no test framework or linter. Run `npm run build` before reporting work
-complete, and visually verify UI changes in a browser (Playwright screenshots
-work well — the app is fully drivable headless).
+There is no linter. Tests use Node's built-in test runner and live under `test/`.
+Run `npm test` and `npm run build` before reporting work complete, and visually
+verify UI changes in a browser (Playwright screenshots work well — the app is
+fully drivable headless).
 
 ## What this is
 
@@ -43,18 +45,23 @@ precedence over client picks; `openSelections()`/`progress()` derive everything
 else. Questions support `showIf` conditional visibility and stable
 division-based numbering (hidden questions keep their number).
 
-**Storage** (`src/lib/store.js`): localStorage, schema-versioned — bump
-`SCHEMA_VERSION` on incompatible shape changes and stale data is wiped on load.
-First run seeds a sample project (`src/data/sampleProject.js`) exactly once.
-The contractor's per-project cloud `write_key` lives here too.
+**Storage** (`src/lib/store.js`): localStorage is a cache + credential store,
+schema-versioned — bump `SCHEMA_VERSION` on incompatible shape changes and
+stale data is wiped on load. First run seeds a sample project
+(`src/data/sampleProject.js`) exactly once. Secrets kept here: per-project
+`share.write_key` and the workspace `(id, key)` creds.
 
-**Cloud** (`src/lib/cloud.js` + `supabase/schema.sql`): Supabase, but tables are
-locked (RLS enabled, zero policies, direct grants revoked) — ALL access goes
-through four `security definer` RPCs: `share_project` (publish/republish,
-returns `{id, write_key}`; republish requires the write_key), `get_project`
-(by uuid, never exposes write_key), `submit_selections`, `get_submissions`
-(requires write_key). Schema changes must be applied to the live project AND
-kept in `supabase/schema.sql`. Config via `VITE_SUPABASE_URL` /
+**Cloud** (`src/lib/cloud.js` + `supabase/schema.sql`): Supabase is the source
+of truth. Tables are locked (RLS enabled, zero policies, direct grants
+revoked) — ALL access goes through `security definer` RPCs: `share_project` /
+`get_project` / `submit_selections` / `get_submissions` for the client-link
+flow (write_key-gated on the contractor side; **never include `share` in any
+client-readable payload**), and `create_workspace` / `load_workspace` /
+`save_workspace` for the contractor's project store. `App.jsx` hydrates from
+the workspace on boot, autosaves (debounced 800ms) on project/catalog/settings
+changes, and exposes a sync code (Catalog → Your business) to connect other
+devices. Schema changes must be applied to the live project AND kept in
+`supabase/schema.sql`. Config via `VITE_SUPABASE_URL` /
 `VITE_SUPABASE_ANON_KEY` in `.env.local` (untracked). **Without config the app
 must keep working fully offline** via URL-encoded share links (`src/lib/link.js`
 base64url-encodes the whole payload; images are stripped/size-capped). Check
