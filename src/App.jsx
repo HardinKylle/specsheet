@@ -133,7 +133,7 @@ export default function App() {
         <Intake catalog={catalog} project={ensureProject()} setProject={setProject} />
       )}
       {route.path === "sheet" && (
-        <Sheet catalog={catalog} project={ensureProject()} settings={settings} />
+        <Sheet catalog={catalog} project={ensureProject()} setProject={setProject} settings={settings} />
       )}
       {route.path === "catalog" && (
         <Catalog catalog={catalog} setCatalog={setCatalog} settings={settings} setSettings={setSettings} />

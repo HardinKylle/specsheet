@@ -1,8 +1,43 @@
+import { useEffect, useState } from "react";
 import { newProject } from "../lib/store.js";
 import { projectMeta, progress } from "../lib/model.js";
+import { cloudEnabled, getSubmissions } from "../lib/cloud.js";
 
 export default function Projects({ catalog, projects, setProjects, activeId, activate }) {
   const list = Object.values(projects).sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  const [syncNote, setSyncNote] = useState(null);
+
+  // Pull in any selections clients made online since the last visit.
+  useEffect(() => {
+    if (!cloudEnabled) return;
+    const shared = Object.values(projects).filter((p) => p.share);
+    if (!shared.length) return;
+    let cancelled = false;
+    (async () => {
+      const next = { ...projects };
+      let merged = 0;
+      for (const p of shared) {
+        try {
+          const subs = await getSubmissions(p.share);
+          const picks = Object.assign({}, ...subs.map((s) => s.picks));
+          const fresh = Object.keys(picks).filter((k) => next[p.id].clientPicks?.[k] !== picks[k]);
+          if (fresh.length) {
+            next[p.id] = { ...next[p.id], clientPicks: { ...(next[p.id].clientPicks || {}), ...picks } };
+            merged += fresh.length;
+          }
+        } catch {
+          // Offline or server hiccup — the dashboard still works from local data.
+        }
+      }
+      if (!cancelled && merged) {
+        setProjects(next);
+        setSyncNote(`Synced ${merged} new client selection${merged === 1 ? "" : "s"}.`);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function create() {
     const fresh = newProject();
@@ -42,6 +77,7 @@ export default function Projects({ catalog, projects, setProjects, activeId, act
         <p className="pane-hint">
           Every job in one place. Duplicate a finished project to reuse it as a
           template for the next one.
+          {syncNote ? <b> {syncNote}</b> : null}
         </p>
       </div>
 

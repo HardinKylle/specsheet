@@ -2,18 +2,53 @@ import { useState } from "react";
 import { Swatch } from "../components/inputs.jsx";
 import { getAnswer, getRoomCount, isVisible, projectMeta, openSelections, resolveAnswer } from "../lib/model.js";
 import { clientLink } from "../lib/link.js";
+import { cloudEnabled, shareProject, getSubmissions } from "../lib/cloud.js";
 
-export default function Sheet({ catalog, project, settings = {} }) {
-  const [copied, setCopied] = useState(false);
+export default function Sheet({ catalog, project, setProject, settings = {} }) {
+  const [linkState, setLinkState] = useState("idle"); // idle | working | copied | error
+  const [syncMsg, setSyncMsg] = useState(null);
   const meta = projectMeta(catalog, project);
   const open = openSelections(catalog, project).length;
   const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
   async function copyLink() {
-    await navigator.clipboard.writeText(clientLink(catalog, project));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    try {
+      let link;
+      if (cloudEnabled) {
+        setLinkState("working");
+        const share = await shareProject(catalog, project);
+        setProject({ ...project, share });
+        link = `${location.origin}${location.pathname}#/client?id=${share.id}`;
+      } else {
+        link = clientLink(catalog, project);
+      }
+      await navigator.clipboard.writeText(link);
+      setLinkState("copied");
+    } catch {
+      setLinkState("error");
+    }
+    setTimeout(() => setLinkState("idle"), 2500);
   }
+
+  async function checkSubmissions() {
+    try {
+      const subs = await getSubmissions(project.share);
+      const merged = Object.assign({}, project.clientPicks, ...subs.map((s) => s.picks));
+      const count = subs.reduce((n, s) => n + Object.keys(s.picks).length, 0);
+      setProject({ ...project, clientPicks: merged });
+      setSyncMsg(count ? `Loaded ${count} client selection${count === 1 ? "" : "s"}.` : "No client selections yet.");
+    } catch {
+      setSyncMsg("Couldn't reach the server — try again.");
+    }
+    setTimeout(() => setSyncMsg(null), 3500);
+  }
+
+  const linkLabel = {
+    idle: cloudEnabled ? "Send to client" : "Copy client link",
+    working: "Publishing…",
+    copied: "Link copied ✓",
+    error: "Failed — retry",
+  }[linkState];
 
   return (
     <main className="sheet-wrap">
@@ -25,8 +60,14 @@ export default function Sheet({ catalog, project, settings = {} }) {
             : `${open} item${open === 1 ? "" : "s"} left open — they print with checkboxes for the client.`}
         </div>
         <div className="sheet-buttons">
-          <button className="btn btn-ghost" onClick={copyLink}>
-            {copied ? "Link copied ✓" : "Copy client link"}
+          {syncMsg ? <span className="client-note">{syncMsg}</span> : null}
+          {cloudEnabled && project.share ? (
+            <button className="btn btn-ghost" onClick={checkSubmissions}>
+              Check for client selections
+            </button>
+          ) : null}
+          <button className="btn btn-ghost" onClick={copyLink} disabled={linkState === "working"}>
+            {linkLabel}
           </button>
           <button className="btn btn-primary" onClick={() => window.print()}>
             Print / Save PDF
