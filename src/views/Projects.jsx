@@ -20,23 +20,33 @@ export default function Projects({ catalog, projects, setProjects, activeId, act
     if (!shared.length) return;
     let cancelled = false;
     (async () => {
-      const next = { ...projects };
-      let merged = 0;
+      const updates = {};
       for (const p of shared) {
         try {
           const subs = await getSubmissions(p.share);
           const picks = Object.assign({}, ...subs.map((s) => s.picks));
-          const fresh = Object.keys(picks).filter((k) => next[p.id].clientPicks?.[k] !== picks[k]);
-          if (fresh.length) {
-            next[p.id] = { ...next[p.id], clientPicks: { ...(next[p.id].clientPicks || {}), ...picks } };
-            merged += fresh.length;
-          }
+          if (Object.keys(picks).length) updates[p.id] = picks;
         } catch {
           // Offline or server hiccup — the dashboard still works from local data.
         }
       }
-      if (!cancelled && merged) {
-        setProjects(next);
+      if (cancelled || !Object.keys(updates).length) return;
+      // Merge against the latest state — edits made while the requests were in
+      // flight must not be overwritten by our pre-await snapshot.
+      let merged = 0;
+      setProjects((prev) => {
+        const next = { ...prev };
+        merged = 0;
+        for (const [id, picks] of Object.entries(updates)) {
+          if (!next[id]) continue;
+          const fresh = Object.keys(picks).filter((k) => next[id].clientPicks?.[k] !== picks[k]);
+          if (!fresh.length) continue;
+          merged += fresh.length;
+          next[id] = { ...next[id], clientPicks: { ...(next[id].clientPicks || {}), ...picks } };
+        }
+        return merged ? next : prev;
+      });
+      if (merged) {
         setSyncNote(`Synced ${merged} new client selection${merged === 1 ? "" : "s"}.`);
       }
     })();
@@ -61,6 +71,7 @@ export default function Projects({ catalog, projects, setProjects, activeId, act
     const copy = { ...structuredClone(project), ...newProject() };
     copy.answers = structuredClone(project.answers);
     copy.clientPicks = {};
+    delete copy.share; // a copy must publish as its own cloud project
     if (copy.answers.project?.projectName) {
       copy.answers.project.projectName += " (copy)";
     }

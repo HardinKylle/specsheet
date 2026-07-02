@@ -4,7 +4,7 @@ import { openSelections, optionLabel, projectMeta } from "../lib/model.js";
 import { decodeShare, returnLink } from "../lib/link.js";
 import { getProject, submitSelections } from "../lib/cloud.js";
 
-export default function Client({ params }) {
+export default function Client({ params, onLoaded }) {
   const cloudId = params.get("id");
   const [payload, setPayload] = useState(() => (cloudId ? null : decodeShare(params.get("d") || "")));
   const [loading, setLoading] = useState(Boolean(cloudId));
@@ -17,7 +17,11 @@ export default function Client({ params }) {
   useEffect(() => {
     if (!cloudId) return;
     getProject(cloudId)
-      .then((p) => setPayload(p ? { catalog: p.catalog, project: p.data } : null))
+      .then((p) => {
+        const loaded = p ? { catalog: p.catalog, project: p.data } : null;
+        setPayload(loaded);
+        if (loaded) onLoaded?.(loaded); // lets the app header show this project
+      })
       .catch(() => setPayload(null))
       .finally(() => setLoading(false));
   }, [cloudId]);

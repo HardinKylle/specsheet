@@ -17,14 +17,20 @@ function stripImages(answers) {
 
 export function encodePayload(payload) {
   const json = JSON.stringify(payload);
-  return btoa(String.fromCharCode(...new TextEncoder().encode(json)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+  const bytes = new TextEncoder().encode(json);
+  // Chunked conversion — spreading the whole array into fromCharCode blows the
+  // argument limit on payloads past ~100KB.
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 export function encodeShare(catalog, project) {
-  const cleanProject = { ...project, answers: stripImages(project.answers) };
+  // The share credentials (write_key) are contractor-only — never in payloads.
+  const { share, ...publicProject } = project;
+  const cleanProject = { ...publicProject, answers: stripImages(publicProject.answers) };
   const encoded = encodePayload({ catalog, project: cleanProject });
   if (encoded.length <= 150_000) return encoded;
   // Too many catalog photos for a URL — drop them and keep swatches.
