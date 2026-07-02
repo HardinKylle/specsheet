@@ -1,3 +1,5 @@
+import { compressImage } from "../lib/images.js";
+
 export function Swatch({ swatch, size = "md" }) {
   if (!swatch) return null;
   return <span className={`swatch swatch-${size}`} style={{ background: swatch }} aria-hidden="true" />;
@@ -53,12 +55,10 @@ export function NumberField({ question, value, onChange }) {
 }
 
 export function ImageField({ question, value, onChange }) {
-  function handleFile(e) {
+  async function handleFile(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => onChange(reader.result);
-    reader.readAsDataURL(file);
+    onChange(await compressImage(file));
   }
   return (
     <div className="image-field">
