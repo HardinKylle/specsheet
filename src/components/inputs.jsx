@@ -16,12 +16,15 @@ export function ChoiceGrid({ question, value, onChange, allowClear = true }) {
             type="button"
             role="radio"
             aria-checked={selected}
-            className={`choice${selected ? " choice-selected" : ""}`}
+            className={`choice${selected ? " choice-selected" : ""}${opt.photo ? " choice-photo" : ""}`}
             onClick={() => onChange(selected && allowClear ? undefined : opt.id)}
           >
-            <Swatch swatch={opt.swatch} />
-            <span className="choice-label">{opt.label}</span>
-            <span className="choice-mark">{selected ? "●" : "○"}</span>
+            {opt.photo ? <img className="choice-img" src={opt.photo} alt="" /> : null}
+            <span className="choice-row">
+              <Swatch swatch={opt.swatch} />
+              <span className="choice-label">{opt.label}</span>
+              <span className="choice-mark">{selected ? "●" : "○"}</span>
+            </span>
           </button>
         );
       })}

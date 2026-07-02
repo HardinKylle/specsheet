@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Swatch } from "../components/inputs.jsx";
-import { getAnswer, getRoomCount, isVisible, projectMeta, openSelections } from "../lib/model.js";
+import { getAnswer, getRoomCount, isVisible, projectMeta, openSelections, resolveAnswer } from "../lib/model.js";
 import { clientLink } from "../lib/link.js";
 
-export default function Sheet({ catalog, project }) {
+export default function Sheet({ catalog, project, settings = {} }) {
   const [copied, setCopied] = useState(false);
   const meta = projectMeta(catalog, project);
   const open = openSelections(catalog, project).length;
@@ -37,10 +37,13 @@ export default function Sheet({ catalog, project }) {
       <article className="sheet">
         <header className="sheet-head">
           <div className="sheet-brand">
-            <span className="tb-mark">SS</span>
+            {settings.logo ? <img className="sheet-logo" src={settings.logo} alt="" /> : <span className="tb-mark">SS</span>}
             <div>
+              {settings.companyName ? <span className="sheet-company">{settings.companyName}</span> : null}
               <strong>Finish &amp; Fixture Selection Schedule</strong>
-              <span>Prepared for client review — mark one option per open item.</span>
+              <span>
+                {settings.contactLine || "Prepared for client review — mark one option per open item."}
+              </span>
             </div>
           </div>
           <table className="sheet-meta">
@@ -65,8 +68,8 @@ export default function Sheet({ catalog, project }) {
             <span>Date</span>
           </div>
           <p>
-            Selections marked ● are specified by contractor. Open items show ○ options —
-            initial one choice per line. Pricing may vary by selection.
+            Selections marked ● are specified by contractor; ◆ were chosen by the client.
+            Open items show ○ options — initial one choice per line. Pricing may vary by selection.
           </p>
         </footer>
       </article>
@@ -100,6 +103,7 @@ function SectionSchedule({ catalog, section, project }) {
                     code={`${section.division}.${String(qi + 1).padStart(2, "0")}`}
                     question={q}
                     value={getAnswer(project, section, roomIndex, q.id)}
+                    resolved={resolveAnswer(project, section, roomIndex, q)}
                   />
                 ) : null
               )}
@@ -111,7 +115,7 @@ function SectionSchedule({ catalog, section, project }) {
   );
 }
 
-function ScheduleRow({ code, question, value }) {
+function ScheduleRow({ code, question, value, resolved }) {
   if (question.type === "image") {
     if (!value) return null;
     return (
@@ -137,7 +141,8 @@ function ScheduleRow({ code, question, value }) {
     );
   }
 
-  const chosen = question.options.find((o) => o.id === value);
+  const chosen = question.options.find((o) => o.id === resolved?.value);
+  const byClient = resolved?.by === "client";
   return (
     <tr className={chosen ? "" : "sched-open"}>
       <td className="sched-code">{code}</td>
@@ -147,16 +152,16 @@ function ScheduleRow({ code, question, value }) {
       </td>
       <td className="sched-value">
         {chosen ? (
-          <span className="sched-pick">
-            <Swatch swatch={chosen.swatch} size="sm" />
-            <b>● {chosen.label}</b>
-            <em>specified</em>
+          <span className={`sched-pick${byClient ? " sched-pick-client" : ""}`}>
+            {chosen.photo ? <img className="sched-opt-photo" src={chosen.photo} alt="" /> : <Swatch swatch={chosen.swatch} size="sm" />}
+            <b>{byClient ? "◆" : "●"} {chosen.label}</b>
+            <em>{byClient ? "client selected" : "specified"}</em>
           </span>
         ) : (
           <span className="sched-options">
             {question.options.map((o) => (
               <span key={o.id} className="sched-opt">
-                <Swatch swatch={o.swatch} size="sm" />○ {o.label}
+                {o.photo ? <img className="sched-opt-photo" src={o.photo} alt="" /> : <Swatch swatch={o.swatch} size="sm" />}○ {o.label}
               </span>
             ))}
           </span>

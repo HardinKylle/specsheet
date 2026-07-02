@@ -1,13 +1,20 @@
 import { useState } from "react";
 import { Swatch } from "../components/inputs.jsx";
-import { saveCatalog, resetCatalog } from "../lib/store.js";
+import { saveCatalog, resetCatalog, saveSettings } from "../lib/store.js";
+import { compressImage } from "../lib/images.js";
 
 let uid = 0;
 const newId = (prefix) => `${prefix}_${Date.now().toString(36)}_${uid++}`;
 
-export default function Catalog({ catalog, setCatalog }) {
+export default function Catalog({ catalog, setCatalog, settings, setSettings }) {
   const [activeId, setActiveId] = useState(catalog.sections[0].id);
+  const isBusiness = activeId === "business";
   const active = catalog.sections.find((s) => s.id === activeId) || catalog.sections[0];
+
+  function updateSettings(next) {
+    setSettings(next);
+    saveSettings(next);
+  }
 
   function update(next) {
     setCatalog(next);
@@ -34,13 +41,20 @@ export default function Catalog({ catalog, setCatalog }) {
         {catalog.sections.map((s) => (
           <button
             key={s.id}
-            className={`toc-item${s.id === active.id ? " active" : ""}`}
+            className={`toc-item${!isBusiness && s.id === active.id ? " active" : ""}`}
             onClick={() => setActiveId(s.id)}
           >
             <span className="toc-div">DIV {s.division}</span>
             <span>{s.title}</span>
           </button>
         ))}
+        <button
+          className={`toc-item${isBusiness ? " active" : ""}`}
+          onClick={() => setActiveId("business")}
+        >
+          <span className="toc-div">CO</span>
+          <span>Your business</span>
+        </button>
         <div className="toc-actions">
           <p className="toc-note">
             Edits here change the intake form and every future sheet. No developer required.
@@ -50,6 +64,77 @@ export default function Catalog({ catalog, setCatalog }) {
       </aside>
 
       <main className="pane">
+        {isBusiness ? (
+          <BusinessPanel settings={settings} updateSettings={updateSettings} />
+        ) : (
+          <SectionEditor active={active} updateSection={updateSection} />
+        )}
+      </main>
+    </div>
+  );
+}
+
+function BusinessPanel({ settings, updateSettings }) {
+  async function handleLogo(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    updateSettings({ ...settings, logo: await compressImage(file, 240, 0.8) });
+  }
+
+  return (
+    <>
+      <div className="pane-head">
+        <span className="pane-div">Company</span>
+        <h1>Your Business</h1>
+        <p className="pane-hint">
+          Shown in the app header and printed on every selection sheet you generate.
+        </p>
+      </div>
+
+      <div className="field">
+        <label className="field-label">Company name</label>
+        <input
+          className="field-input"
+          value={settings.companyName || ""}
+          placeholder="Summit Builders LLC"
+          onChange={(e) => updateSettings({ ...settings, companyName: e.target.value })}
+        />
+      </div>
+
+      <div className="field">
+        <label className="field-label">Contact line</label>
+        <input
+          className="field-input"
+          value={settings.contactLine || ""}
+          placeholder="(555) 210-4488 · office@summitbuilders.com"
+          onChange={(e) => updateSettings({ ...settings, contactLine: e.target.value })}
+        />
+      </div>
+
+      <div className="field">
+        <label className="field-label">Logo</label>
+        {settings.logo ? (
+          <div className="image-preview">
+            <img src={settings.logo} alt="Company logo" />
+            <button className="btn btn-ghost" onClick={() => updateSettings({ ...settings, logo: undefined })}>
+              Remove logo
+            </button>
+          </div>
+        ) : (
+          <label className="image-drop">
+            <input type="file" accept="image/*" onChange={handleLogo} />
+            <span>Upload logo</span>
+            <small>Square or wide marks both work — it's scaled to fit.</small>
+          </label>
+        )}
+      </div>
+    </>
+  );
+}
+
+function SectionEditor({ active, updateSection }) {
+  return (
+    <>
         <div className="pane-head">
           <span className="pane-div">Division {active.division}</span>
           <h1>Edit — {active.title}</h1>
@@ -116,6 +201,37 @@ export default function Catalog({ catalog, setCatalog }) {
                         })
                       }
                     />
+                    {opt.photo ? <img className="cat-photo-thumb" src={opt.photo} alt="" /> : null}
+                    <label className="btn btn-ghost btn-small cat-photo-btn">
+                      {opt.photo ? "Replace photo" : "+ Photo"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const photo = await compressImage(file, 240, 0.7);
+                          updateSection(active.id, (s) => {
+                            s.questions[qi].options[oi].photo = photo;
+                            return s;
+                          });
+                        }}
+                      />
+                    </label>
+                    {opt.photo ? (
+                      <button
+                        className="btn btn-ghost btn-small"
+                        title="Remove photo"
+                        onClick={() =>
+                          updateSection(active.id, (s) => {
+                            delete s.questions[qi].options[oi].photo;
+                            return s;
+                          })
+                        }
+                      >
+                        No photo
+                      </button>
+                    ) : null}
                     <button
                       className="btn btn-ghost btn-small"
                       onClick={() =>
@@ -177,7 +293,6 @@ export default function Catalog({ catalog, setCatalog }) {
             + Add text question
           </button>
         </div>
-      </main>
-    </div>
+    </>
   );
 }
