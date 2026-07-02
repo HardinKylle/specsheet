@@ -221,6 +221,7 @@ img { max-width: 100%; }
 
 /* ---------- pane / form ---------- */
 .pane {
+  min-width: 0; /* grid items default to min-width auto and refuse to shrink */
   padding: 32px 44px 64px;
   max-width: 860px;
 }
@@ -251,6 +252,7 @@ img { max-width: 100%; }
 }
 
 .room {
+  min-width: 0; /* fieldsets default to min-content and refuse to shrink */
   border: 1px solid var(--line);
   border-top: 2px solid var(--ink);
   background: var(--white);
@@ -977,7 +979,7 @@ img { max-width: 100%; }
   .titleblock { grid-template-columns: 1fr; }
   .tb-brand { border-right: none; border-bottom: 1px solid var(--line); }
   .tb-fields { grid-template-columns: repeat(2, 1fr); border-bottom: 1px solid var(--line); }
-  .tb-nav a { flex: 1; justify-content: center; padding: 12px 0; }
+  .tb-nav a { flex: 1; justify-content: center; padding: 12px 0; text-align: center; }
 
   .layout { grid-template-columns: 1fr; }
   .toc {
