@@ -44,8 +44,29 @@ npm run build    # production bundle -> dist/
 
 A sample generated PDF and screenshots are in `docs/`.
 
+## Cloud mode (Supabase)
+
+With Supabase configured, "Send to client" publishes the project and produces a
+short link (`#/client?id=<uuid>`); the client's confirmation is stored as a
+submission row, and the contractor pulls it in with "Check for client
+selections" (the Projects dashboard also auto-syncs on load). Without config,
+the app falls back to fully offline URL-encoded links.
+
+Setup:
+
+1. Create a Supabase project and run `supabase/schema.sql` in the SQL editor.
+   Tables are locked down (RLS, no policies) — all access goes through
+   `security definer` RPCs; contractor operations require a per-project secret
+   `write_key` that never leaves their browser.
+2. Add to `.env.local` (untracked):
+
+```
+VITE_SUPABASE_URL=https://<ref>.supabase.co
+VITE_SUPABASE_ANON_KEY=<anon key>
+```
+
 ## Production notes
 
-For the real build, the client link and "email selections" flow would move to a
-small backend (store projects, email the client a link, record submissions) —
-the UI and data model here carry over unchanged.
+Remaining for a production build: contractor auth (the prototype trusts the
+contractor's browser), emailing the client their link automatically, and
+storing option photos in object storage instead of inline data URLs.
