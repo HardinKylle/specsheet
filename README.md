@@ -11,6 +11,15 @@ static URL, including a Squarespace-linked subdomain.
 
 ## Features
 
+- **Projects dashboard** — every job in one place with per-project progress
+  (specified / chosen by client / open), duplicate-as-template, delete.
+- **Your business** — company name, contact line, and logo, shown in the app
+  header and printed on every schedule.
+- **Product photos** — catalog options accept photo uploads (auto-compressed);
+  photos show in the form, the client view, and the printed schedule.
+- **Client round-trip** — the client's confirmation produces a link that, when
+  the contractor opens it, merges their choices into the project — marked
+  ◆ client selected on the schedule.
 - **Intake** — sections organized by CSI MasterFormat division (Div 01 project
   info, Div 22 bathrooms, Div 12 kitchen, Div 09 finishes). "Number of
   bathrooms" spawns a per-bathroom question set. Conditional questions (tub
