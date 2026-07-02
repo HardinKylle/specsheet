@@ -15,13 +15,26 @@ function stripImages(answers) {
   return clean;
 }
 
-export function encodeShare(catalog, project) {
-  const payload = { catalog, project: { ...project, answers: stripImages(project.answers) } };
+export function encodePayload(payload) {
   const json = JSON.stringify(payload);
   return btoa(String.fromCharCode(...new TextEncoder().encode(json)))
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/, "");
+}
+
+export function encodeShare(catalog, project) {
+  const cleanProject = { ...project, answers: stripImages(project.answers) };
+  const encoded = encodePayload({ catalog, project: cleanProject });
+  if (encoded.length <= 150_000) return encoded;
+  // Too many catalog photos for a URL — drop them and keep swatches.
+  const slim = JSON.parse(JSON.stringify(catalog));
+  for (const s of slim.sections) {
+    for (const q of s.questions) {
+      for (const o of q.options || []) delete o.photo;
+    }
+  }
+  return encodePayload({ catalog: slim, project: cleanProject });
 }
 
 export function decodeShare(encoded) {
@@ -37,4 +50,10 @@ export function decodeShare(encoded) {
 export function clientLink(catalog, project) {
   const base = `${location.origin}${location.pathname}`;
   return `${base}#/client?d=${encodeShare(catalog, project)}`;
+}
+
+// Link the client sends back: their picks plus a readable summary.
+export function returnLink(project, projectName, picks, summary) {
+  const base = `${location.origin}${location.pathname}`;
+  return `${base}#/apply?d=${encodePayload({ projectId: project.id, projectName, picks, summary })}`;
 }

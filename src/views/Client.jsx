@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import { ChoiceGrid } from "../components/inputs.jsx";
 import { openSelections, optionLabel, projectMeta } from "../lib/model.js";
-import { decodeShare } from "../lib/link.js";
+import { decodeShare, returnLink } from "../lib/link.js";
 
 export default function Client({ params }) {
   const payload = useMemo(() => decodeShare(params.get("d") || ""), [params]);
   const [picks, setPicks] = useState({});
   const [submitted, setSubmitted] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   if (!payload) {
     return (
@@ -36,39 +37,50 @@ export default function Client({ params }) {
   }
 
   if (submitted) {
+    const chosen = open.filter((item) => picks[keyOf(item)]);
+    const summary = chosen.map((item) => ({
+      where: `${item.section.repeatable ? `${item.section.unitLabel || "Unit"} ${item.roomIndex + 1} — ` : ""}${item.question.label}`,
+      choice: optionLabel(item.question, picks[keyOf(item)]),
+    }));
+    const cleanPicks = Object.fromEntries(chosen.map((item) => [keyOf(item), picks[keyOf(item)]]));
+    const link = returnLink(project, meta.projectName, cleanPicks, summary);
+
     return (
       <main className="client-wrap">
         <div className="client-done">
           <h1>Selections recorded</h1>
           <p>Here's what you chose for <b>{meta.projectName}</b>:</p>
           <ul>
-            {open.map((item) => (
-              <li key={keyOf(item)}>
-                <span className="done-where">
-                  {item.section.repeatable
-                    ? `${item.section.unitLabel || "Unit"} ${item.roomIndex + 1} — `
-                    : ""}
-                  {item.question.label}
-                </span>
-                <b>{optionLabel(item.question, picks[keyOf(item)]) || "Skipped"}</b>
+            {summary.map((line, i) => (
+              <li key={i}>
+                <span className="done-where">{line.where}</span>
+                <b>{line.choice}</b>
               </li>
             ))}
           </ul>
-          <a
-            className="btn btn-primary"
-            href={`mailto:?subject=${encodeURIComponent(`Selections — ${meta.projectName}`)}&body=${encodeURIComponent(
-              open
-                .map(
-                  (item) =>
-                    `${item.section.title}${item.section.repeatable ? ` ${item.roomIndex + 1}` : ""} — ${item.question.label}: ${optionLabel(item.question, picks[keyOf(item)]) || "Skipped"}`
-                )
-                .join("\n")
-            )}`}
-          >
-            Email selections to contractor
-          </a>
+          <div className="client-return">
+            <a
+              className="btn btn-primary"
+              href={`mailto:?subject=${encodeURIComponent(`Selections — ${meta.projectName}`)}&body=${encodeURIComponent(
+                `Hi,\n\nI made my selections for ${meta.projectName}. Open this link to load them into the project:\n\n${link}\n\nThanks!`
+              )}`}
+            >
+              Email selections to contractor
+            </a>
+            <button
+              className="btn btn-ghost"
+              onClick={async () => {
+                await navigator.clipboard.writeText(link);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2500);
+              }}
+            >
+              {copied ? "Link copied ✓" : "Copy confirmation link"}
+            </button>
+          </div>
           <p className="client-note">
-            In the full build this submits automatically — no email step needed.
+            The link carries your choices — when your contractor opens it, they land
+            directly in the project. A production build submits this automatically.
           </p>
         </div>
       </main>
